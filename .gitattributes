@@ -1,0 +1,2 @@
+model_resnet34_BibitSawit_ADAM_RF_884_10epc_lr01_16bs_20250321_1120.pth filter=lfs diff=lfs merge=lfs -text
+model_alexnet_2025-03-14_19-17-34.pth filter=lfs diff=lfs merge=lfs -text
