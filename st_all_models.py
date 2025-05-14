@@ -79,7 +79,7 @@ def load_model():
         nn.Linear(1024, num_classes),
     )
 
-    checkpoint = torch.load('model_lr0.001_optAdam_drop0.6_acc0.8529.pth', map_location=torch.device('cpu'))
+    checkpoint = torch.load('model_lr0.001_optAdam_drop0.6_acc0.8529.pth.pth', map_location=torch.device('cpu'))
     model.load_state_dict(checkpoint['model_state_dict'])  
 
     model.eval()
