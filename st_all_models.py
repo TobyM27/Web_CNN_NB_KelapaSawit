@@ -5,9 +5,14 @@ from PIL import Image, ImageOps
 import torchvision.transforms as transforms
 import torchvision.models as models
 import torch.nn as nn
+import pathlib
 
 import cv2, numpy as np, joblib
 from skimage.feature import graycomatrix, graycoprops
+
+def load_css(file_path):
+    with open(file_path) as f:
+        st.markdown(f'<style>{f.read()}</style>')
 
 # ______________ naive bayes functions ______________
 
@@ -79,7 +84,7 @@ def load_model():
         nn.Linear(1024, num_classes),
     )
 
-    checkpoint = torch.load('model_lr0.001_optAdam_drop0.6_acc0.8529.pth.pth', map_location=torch.device('cpu'))
+    checkpoint = torch.load('model_lr0.001_optAdam_drop0.6_acc0.8529.pth', map_location=torch.device('cpu'))
     model.load_state_dict(checkpoint['model_state_dict'])  
 
     model.eval()
@@ -95,10 +100,15 @@ def preprocess_image(image):
     return transform(image).unsqueeze(0)
 
 def predict(model, image):
+    # with torch.no_grad():
+    #     outputs = model(image)
+    #     _, predicted = torch.max(outputs.data, 1)
+    #     return predicted.item()
     with torch.no_grad():
         outputs = model(image)
-        _, predicted = torch.max(outputs.data, 1)
-        return predicted.item()
+        probabilities = torch.nn.functional.softmax(outputs, dim=1)
+        _, predicted = torch.max(probabilities, 1)
+        return predicted.item(), probabilities.squeeze().tolist()
     
 
 
@@ -130,6 +140,9 @@ def preprop(image):
 
 # ______________ Main functions ______________
 def main():
+    # css_path = pathlib.Path("style.css")
+    # load_css(css_path)
+
     st.sidebar.title("Pilihan Model")
     model_choice = st.sidebar.radio(
         "Pilih Model :",
@@ -179,12 +192,16 @@ def main():
                     col1, col2 = st.columns(2)
 
                     with col1:
-                        st.write("PSO Model Prediction:")
-                        st.write(f"**{pso_prediction}**")
+                        st.markdown(f"""<div style="padding: 10px; background-color: #ff7043; color: white; font-size: 24px; text-align: center; border-radius: 5px;">
+                    🚀 **PSO Model Prediction: {pso_prediction}** 🎴 </div>""", unsafe_allow_html=True)
+                        # st.write("PSO Model Prediction:")
+                        # st.write(f"**{pso_prediction}**")
                     
                     with col2:
-                        st.write("GA Model Prediction:")
-                        st.write(f"**{ga_prediction}**")
+                        st.markdown(f"""<div style="padding: 10px; background-color: #ff7043; color: white; font-size: 24px; text-align: center; border-radius: 5px;">
+                    🚀 **GA Model Prediction: {ga_prediction}** 🎴 </div>""", unsafe_allow_html=True)
+                        # st.write("GA Model Prediction:")
+                        # st.write(f"**{ga_prediction}**")
 
                     st.subheader("Confidence Scores:")
 
@@ -214,10 +231,16 @@ def main():
                     prediction = predict(model, processed_image)
 
                     class_names = ['bercak_daun', 'daun_berkerut', 'daun_berputar', 'daun_menggulung', 'daun_menguning']
-                    result = class_names[prediction]
+                    result = class_names[prediction[0]]
+                    probs = prediction[1]
 
-                    st.markdown(f"""<div style="padding: 20px; background-color: #4CAF50; color: white; font-size: 24px; text-align: center; border-radius: 10px;">
+
+                    st.markdown(f"""<div style="padding: 20px; background-color: #ff7043; color: white; font-size: 24px; text-align: center; border-radius: 10px;">
                     🚀 **Alexnet Model Prediction: {result}** 🎴 </div>""", unsafe_allow_html=True)
+            
+                    st.subheader("Confidence Scores:")
+                    for cls, prob in zip(class_names, probs):
+                        st.write(f"{cls}: {prob:.4f}")
 
         elif 'ResNet-34' in model_choice :
             if st.button('Classify'):
@@ -236,24 +259,23 @@ def main():
                     mod_image = preprop(image)
                     tensor_img = mod_image.unsqueeze(0)
 
+                    # with torch.no_grad():
+                    #     outputs = saved_model(tensor_img)
+                    #     _, preds = torch.max(outputs, 1)
+                    #     class_name = class_names[preds.item()]
+
                     with torch.no_grad():
                         outputs = saved_model(tensor_img)
-                        _, preds = torch.max(outputs, 1)
+                        probabilities = torch.nn.functional.softmax(outputs, dim=1)
+                        _, preds = torch.max(probabilities, 1)
                         class_name = class_names[preds.item()]
+                        probs = probabilities.squeeze().tolist()
 
-                    predicted_idx = preds.item()
-                    predicted_class = class_names[predicted_idx]
-                    
-                    # Calculate probabilities
-                    probabilities = torch.nn.functional.softmax(outputs[0], dim=0)
+                    st.markdown(f"""<div style="padding: 20px; background-color: #ff7043; color: white; font-size: 24px; text-align: center; border-radius: 10px;">🚀 **Resnet Model Prediction: {class_name}** 🎴</div>""", unsafe_allow_html=True)
 
-                    st.markdown(f"""<div style="padding: 20px; background-color: #4CAF50; color: white; font-size: 24px; text-align: center; border-radius: 10px;">🚀 **Resnet Model Prediction: {class_name}** 🎴</div>""", unsafe_allow_html=True)
-
-                    # Display class probabilities
-                    st.subheader("ResNet-34 Prediction Probabilities:")
-                    for i, prob in enumerate(probabilities):
-                        probability_percentage = prob.item() * 100
-                        st.markdown(f"{class_names[i]}: {probability_percentage:.2f}%")
+                    st.subheader("Confidence Scores:")
+                    for cls, prob in zip(class_names, probs):
+                        st.write(f"{cls}: {prob:.4f}")
 
 
 if __name__ == '__main__' :
